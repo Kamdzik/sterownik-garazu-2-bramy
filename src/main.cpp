@@ -374,8 +374,10 @@ unsigned long czas_zabezpiecz_czujka_dom = 900000; ///->115min //// zabezpieczen
 unsigned long dane_rcswitch;
 byte tryb_ustawien_433 = 0;                   // tryb usatwien 433   1-pozwolenie z pierwszego  przycisku,,, 2-pozwolenie z drugiego przycisku ,, 3 włączenie programowania kodów
 unsigned long czas_przyc_dlugie_prog = 60000; // 1min po tym czasie włącza sie usatwienie pilota
-byte nr_pilota = 0;                           /// 0,1,2,3,4,5//
-unsigned long tabRCswitch[5][3];              /// PIERWSZALICZBA WIERSZE --  , DRUGA KOLUMNY ||   !!!OD ZERA!!
+int nr_pilota = 0;                            /// 1,2,3,4,5,6//  0,16,32,64,128,256
+unsigned long tabRCswitch_bufor[6];           // bufor odczytanych komend przy zapisie
+byte numer_tabRCswitch_bufor = 0;
+unsigned long tabRCswitch[5][3]; /// PIERWSZALICZBA WIERSZE --  , DRUGA KOLUMNY ||   !!!OD ZERA!!
 //      otwórz doł  ,,  zamnij dół ,, otwórz góra  ,,  zamnij góra
 //          0               1              2               3
 ///  0    XXXXX           XXXXX          XXXXX           XXXXX
@@ -1387,7 +1389,6 @@ void loop()
         czas_filtr_przyc_gorna1 = czas;
         czas_filtr_przyc_gorna2 = czas;
 
-
         czasprzycotwieraniedolna = czas;
         czasprzycotwieraniegora = czas;
         ////////////////////////do uzupełnienia !!!!!!!!/////////////
@@ -1709,40 +1710,82 @@ void loop()
             {
                 if (490 < adcprzycoswietlenie && adcprzycoswietlenie < 520 && warprzyc_stoj == 0) ////  505 / 2,466V////logika przyciki lampy stojacych
                 {
-                    czas_przyc_licz = czas;
-                    czas_wylacz_reczne_lampy_licz = czas;
-                    stan_lampa_stojaca++;
-                    if (stan_lampa_stojaca == 4)
+                    if (tryb_ustawien_433 <= 1)
                     {
-                        stan_lampa_stojaca = 1;
+                        czas_przyc_licz = czas;
+                        czas_wylacz_reczne_lampy_licz = czas;
+                        stan_lampa_stojaca++;
+                        if (stan_lampa_stojaca == 4)
+                        {
+                            stan_lampa_stojaca = 1;
+                        }
+                        if (stan_lampa_stojaca == 1 || stan_lampa_stojaca == 2)
+                        {
+                            czaspikaczu1 = czas;
+                        }
+                        if (stan_lampa_stojaca == 3)
+                        {
+                            czaspikaczu2 = czas;
+                        }
                     }
-                    if (stan_lampa_stojaca == 1 || stan_lampa_stojaca == 2)
+                    else
                     {
                         czaspikaczu1 = czas;
+                        // 0,16,32,64,128,256
+                        if (nr_pilota == 128)
+                        {
+                            nr_pilota = 256;
+                        }
+
+                        if (nr_pilota == 64)
+                        {
+                            nr_pilota = 128;
+                        }
+
+                        if (nr_pilota == 32)
+                        {
+                            nr_pilota = 64;
+                        }
+
+                        if (nr_pilota == 16)
+                        {
+                            nr_pilota = 32;
+                        }
+
+                        if (nr_pilota == 0)
+                        {
+                            nr_pilota = 16;
+                        }
                     }
-                    if (stan_lampa_stojaca == 3)
-                    {
-                        czaspikaczu2 = czas;
-                    }
+
                     warprzyc_stoj = 1;
                 }
                 else
                 {
                     if (221 < adcprzycoswietlenie && adcprzycoswietlenie < 251 && warprzyc_wewn == 0) // 236 / 1,154v      ////logika przyciki lampy wewnętrznej
                     {
-                        czas_przyc_licz = czas;
-                        czas_wylacz_reczne_lampy_licz = czas;
-                        stan_lampa_wewntrzna++;
-                        if (stan_lampa_wewntrzna == 4)
+                        if (tryb_ustawien_433 <= 1)
                         {
-                            stan_lampa_wewntrzna = 1;
+                            czas_przyc_licz = czas;
+                            czas_wylacz_reczne_lampy_licz = czas;
+                            stan_lampa_wewntrzna++;
+                            if (stan_lampa_wewntrzna == 4)
+                            {
+                                stan_lampa_wewntrzna = 1;
+                            }
+                            if (stan_lampa_wewntrzna == 1 || stan_lampa_wewntrzna == 2)
+                            {
+                                czaspikaczu1 = czas;
+                            }
+                            if (stan_lampa_wewntrzna == 3)
+                            {
+                                czaspikaczu2 = czas;
+                            }
                         }
-                        if (stan_lampa_wewntrzna == 1 || stan_lampa_wewntrzna == 2)
-                        {
-                            czaspikaczu1 = czas;
-                        }
-                        if (stan_lampa_wewntrzna == 3)
-                        {
+                        else
+                        { // wyjście z trybu programowania pilotów 433
+                            nr_pilota = 0;
+                            tryb_ustawien_433 = 0;
                             czaspikaczu2 = czas;
                         }
                         warprzyc_wewn = 1;
@@ -1978,9 +2021,108 @@ void loop()
 
     if (mySwitch.available())
     {
-
         dane_rcswitch = mySwitch.getReceivedValue();
         mySwitch.resetAvailable();
+
+        // 2  tryb programowania
+        if (tryb_ustawien_433 >= 2 && tryb_ustawien_433 <= 6)
+        {
+            // tryb_ustawien_433 == 3   otwórz brama dolna
+            // tryb_ustawien_433 == 4  zamknij brama dolna
+            // tryb_ustawien_433 == 5  otwórz brama górna
+            // tryb_ustawien_433 == 6  zamknij brama górna
+
+            // jesli tryb_ustawien_433 == 2  , mruga numer pilota np 0 / pusty
+            //  jeśli klikniesz klawisz swiateł to nr pilota ++
+            //  jesli kllikniejsz któryś klawisz sterowania bramą to  mruga dół albo góra na przemian z numerem pilota , w tym momęcie zczytywane sa dane z piloita 433MHz  jesli 5 razy zczyta ten sam kod to zapis do eeprom i powrót do mrugania pilotem
+            ///     ale jesli klikniesz jakis inny klawisz bramy to anuluje zapis i wyswietla inna kombinacje
+
+            // numer_tabRCswitch_bufor  0 1 2 3 4 5 6 -
+
+            if (numer_tabRCswitch_bufor < 7)
+            {
+                tabRCswitch_bufor[numer_tabRCswitch_bufor] = dane_rcswitch;
+                numer_tabRCswitch_bufor++;
+
+                if (numer_tabRCswitch_bufor >= 7)
+                {
+                    if (tabRCswitch_bufor[0] == tabRCswitch_bufor[1])
+                    {
+                        if (tabRCswitch_bufor[0] == tabRCswitch_bufor[2])
+                        {
+                            if (tabRCswitch_bufor[0] == tabRCswitch_bufor[3])
+                            {
+                                if (tabRCswitch_bufor[0] == tabRCswitch_bufor[4])
+                                {
+                                    if (tabRCswitch_bufor[0] == tabRCswitch_bufor[5])
+                                    {
+                                        if (tabRCswitch_bufor[0] == tabRCswitch_bufor[6])
+                                        {                               /// jeśli wszystkie wartości sa takie same to
+                                                                        /// zapis do pamięci eeprom //////
+                                                                        /// nr_pilota  /// 1,2,3,4,5,6// cyfrowo: 0,16,32,64,128,256
+                                            if (tryb_ustawien_433 == 3) // 3 otwórz brama dolna
+                                            {
+                                                writeLongIntoEEPROM((0 + nr_pilota), tabRCswitch_bufor[0]);
+                                            }
+
+                                            if (tryb_ustawien_433 == 4) // 4 zamknij brama dolna
+                                            {
+                                                writeLongIntoEEPROM((4 + nr_pilota), tabRCswitch_bufor[0]);
+                                            }
+
+                                            if (tryb_ustawien_433 == 5) // 5  otwórz brama górna
+                                            {
+                                                writeLongIntoEEPROM((8 + nr_pilota), tabRCswitch_bufor[0]);
+                                            }
+
+                                            if (tryb_ustawien_433 == 6) // 6  zamknij brama górna
+                                            {
+                                                writeLongIntoEEPROM((12 + nr_pilota), tabRCswitch_bufor[0]);
+                                            }
+                                            // zajęty eeprom 272 włącznie
+
+                                            numer_tabRCswitch_bufor = 0;
+                                            czaspikaczu2 = czas; /// zapinano kod
+                                            tryb_ustawien_433 = 2;
+                                        }
+                                        else
+                                        {
+                                            numer_tabRCswitch_bufor = 0;
+                                            czaspikaczu1 = czas;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        numer_tabRCswitch_bufor = 0;
+                                        czaspikaczu1 = czas;
+                                    }
+                                }
+                                else
+                                {
+                                    numer_tabRCswitch_bufor = 0;
+                                    czaspikaczu1 = czas;
+                                }
+                            }
+                            else
+                            {
+                                numer_tabRCswitch_bufor = 0;
+                                czaspikaczu1 = czas;
+                            }
+                        }
+                        else
+                        {
+                            numer_tabRCswitch_bufor = 0;
+                            czaspikaczu1 = czas;
+                        }
+                    }
+                    else
+                    {
+                        numer_tabRCswitch_bufor = 0;
+                        czaspikaczu1 = czas;
+                    }
+                }
+            }
+        }
     }
 
     if (tryb_ustawien_433 == 0)
@@ -2009,31 +2151,6 @@ void loop()
             komenda_zamknij_gorna_brama();
         }
     }
-
-// 2  tryb programowania
-    if(tryb_ustawien_433 == 2 ){
-//jesli tryb_ustawien_433 == 2  , mruga numer pilota np 0 / pusty
-// jeśli klikniesz klawisz swiateł to nr pilota ++
-// jesli kllikniejsz któryś klawisz sterowania bramą to  mruga dół albo góra na przemian z numerem pilota , w tym momęcie zczytywane sa dane z piloita 433MHz  jesli 5 razy zczyta ten sam kod to zapis do eeprom i powrót do mrugania pilotem
-///     ale jesli klikniejsz jakis inny klawisz bramy to anuluje zapis i wyswietla inna kombinacje
-        
-
-
-
-
-
-
-
-
-
-
-
-    }
-
-
-
-
-
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -2141,33 +2258,44 @@ void loop()
 
             if (warprzycbrdul == 2)
             {
-                if (czas - czasprzyczamykaniedolna < czasprzycdlugie)
+                if (tryb_ustawien_433 <= 1)
                 {
-                    if (adcprzycbrdolna < 30)
+                    if (czas - czasprzyczamykaniedolna < czasprzycdlugie)
                     {
-                        warprzycbrdul = 0;
-                        komenda_zamknij_dolna_brama();
+                        if (adcprzycbrdolna < 30)
+                        {
+                            warprzycbrdul = 0;
+                            komenda_zamknij_dolna_brama();
+                        }
+                    }
+                    else
+                    {
+                        if (bladRR_R == 0 && bladRR == 0 && bladR == 0 && bladB == 0 && bladD == 0 && bladF == 0 && bladJ == 0 && bladK == 0 && bladM == 0 && brama1 == 0 && brama11 == 0 && otworzdolnazopuznienie == 0 && bladG == 0 && bladL == 0)
+                        {
+                            if (otworzgorazopuznienie == 1)
+                            {
+                                czasprzyczamykaniegoraanimacja = czas;
+                                animacjawolnegora = 10;
+                            }
+                            czasprzyczamykaniedolnaanimacja = czas;
+                            animacjawolnedolna = 10;
+                            otworzdolnazopuznienie = 1;
+                            czaspikaczu2 = czas;
+                        }
+                        else
+                        {
+                            komenda_zamknij_dolna_brama();
+                        }
+                        warprzycbrdul = 3;
                     }
                 }
                 else
                 {
-                    if (bladRR_R == 0 && bladRR == 0 && bladR == 0 && bladB == 0 && bladD == 0 && bladF == 0 && bladJ == 0 && bladK == 0 && bladM == 0 && brama1 == 0 && brama11 == 0 && otworzdolnazopuznienie == 0 && bladG == 0 && bladL == 0)
+                    if (adcprzycbrdolna < 30)
                     {
-                        if (otworzgorazopuznienie == 1)
-                        {
-                            czasprzyczamykaniegoraanimacja = czas;
-                            animacjawolnegora = 10;
-                        }
-                        czasprzyczamykaniedolnaanimacja = czas;
-                        animacjawolnedolna = 10;
-                        otworzdolnazopuznienie = 1;
-                        czaspikaczu2 = czas;
+                        tryb_ustawien_433 = 4;
+                        warprzycbrdul = 0;
                     }
-                    else
-                    {
-                        komenda_zamknij_dolna_brama();
-                    }
-                    warprzycbrdul = 3;
                 }
             }
 
@@ -2176,6 +2304,7 @@ void loop()
             {
                 if (czas - czas_filtr_przyc_dolna1 > czasnacisniencia_przyc && warprzycbrdul == 0)
                 {
+
                     warprzycbrdul = 1;
                     czasprzycotwieraniedolna = czas;
                 }
@@ -2184,30 +2313,42 @@ void loop()
             {
                 czas_filtr_przyc_dolna1 = czas;
             }
+
             if (warprzycbrdul == 1)
             {
-                if (czas - czasprzycotwieraniedolna < czas_przyc_dlugie_prog)
+                if (tryb_ustawien_433 <= 1)
                 {
-                    if (adcprzycbrdolna < 30)
+                    if (czas - czasprzycotwieraniedolna < czas_przyc_dlugie_prog)
                     {
-                        warprzycbrdul = 0;
-                        komenda_otworz_dolna_brama();
+                        if (adcprzycbrdolna < 30)
+                        {
+                            warprzycbrdul = 0;
+                            komenda_otworz_dolna_brama();
+                        }
+                    }
+                    else
+                    {
+                        if (blad == 0)
+                        {
+                            if (tryb_ustawien_433 == 0)
+                            {
+                                tryb_ustawien_433 = 1;
+                            }
+                            else if (tryb_ustawien_433 == 1)
+                            {
+                                tryb_ustawien_433 = 2;
+                            }
+                        }
+                        warprzycbrdul = 3;
                     }
                 }
                 else
                 {
-                    if (blad == 0)
+                    if (adcprzycbrdolna < 30)
                     {
-                        if (tryb_ustawien_433 == 0)
-                        {
-                            tryb_ustawien_433 = 1;
-                        }
-                        else if (tryb_ustawien_433 == 1)
-                        {
-                            tryb_ustawien_433 = 2;
-                        }
+                        tryb_ustawien_433 = 3;
+                         warprzycbrdul = 0;
                     }
-                    warprzycbrdul = 3;
                 }
             }
             ///// otwieranie  jesli klawisz krutko naciśniety jesli długo to ustawienia pilotów/////
@@ -2217,9 +2358,9 @@ void loop()
             {
                 warprzycbrdul = 0;
                 if (tryb_ustawien_433 == 1)
-                        {
-                            tryb_ustawien_433 = 0;
-                        }
+                {
+                    tryb_ustawien_433 = 0;
+                }
             }
 
             if (otworzdolnazopuznienie == 1)
@@ -2936,6 +3077,7 @@ void loop()
             {
                 if (czas - czas_filtr_przyc_gorna2 > czasnacisniencia_przyc && warprzycbrgora == 0)
                 {
+
                     warprzycbrgora = 2;
                     czasprzyczamykaniegora = czas;
                 }
@@ -2947,34 +3089,45 @@ void loop()
 
             if (warprzycbrgora == 2)
             {
-                if (czas - czasprzyczamykaniegora < czasprzycdlugie)
+                if (tryb_ustawien_433 <= 1)
                 {
-                    if (adcprzycbrgorna < 30)
+                    if (czas - czasprzyczamykaniegora < czasprzycdlugie)
                     {
-                        warprzycbrgora = 0;
-                        komenda_zamknij_gorna_brama();
+                        if (adcprzycbrgorna < 30)
+                        {
+                            warprzycbrgora = 0;
+                            komenda_zamknij_gorna_brama();
+                        }
+                    }
+                    else
+                    {
+                        if (bladS == 0 && bladSS == 0 && bladA == 0 && bladC == 0 && bladE == 0 && bladH == 0 && bladI == 0 && bladN == 0 && brama22 == 0 && brama2 == 0 && otworzgorazopuznienie == 0 && bladG == 0 && bladL == 0 && bladSS_S == 0)
+                        {
+
+                            if (otworzdolnazopuznienie == 1)
+                            {
+                                animacjawolnedolna = 10;
+                                czasprzyczamykaniedolnaanimacja = czas;
+                            }
+                            czasprzyczamykaniegoraanimacja = czas;
+                            animacjawolnegora = 10;
+                            otworzgorazopuznienie = 1;
+                            czaspikaczu2 = czas;
+                        }
+                        else
+                        {
+                            komenda_zamknij_gorna_brama();
+                        }
+                        warprzycbrgora = 3;
                     }
                 }
                 else
                 {
-                    if (bladS == 0 && bladSS == 0 && bladA == 0 && bladC == 0 && bladE == 0 && bladH == 0 && bladI == 0 && bladN == 0 && brama22 == 0 && brama2 == 0 && otworzgorazopuznienie == 0 && bladG == 0 && bladL == 0 && bladSS_S == 0)
+                    if (adcprzycbrgorna < 30)
                     {
-
-                        if (otworzdolnazopuznienie == 1)
-                        {
-                            animacjawolnedolna = 10;
-                            czasprzyczamykaniedolnaanimacja = czas;
-                        }
-                        czasprzyczamykaniegoraanimacja = czas;
-                        animacjawolnegora = 10;
-                        otworzgorazopuznienie = 1;
-                        czaspikaczu2 = czas;
+                        tryb_ustawien_433 = 6;
+                         warprzycbrgora = 0;
                     }
-                    else
-                    {
-                        komenda_zamknij_gorna_brama();
-                    }
-                    warprzycbrgora = 3;
                 }
             }
 
@@ -2983,6 +3136,7 @@ void loop()
             {
                 if (czas - czas_filtr_przyc_gorna1 > czasnacisniencia_przyc && warprzycbrgora == 0)
                 {
+
                     warprzycbrgora = 1;
                     czasprzycotwieraniegora = czas;
                 }
@@ -2994,38 +3148,49 @@ void loop()
 
             if (warprzycbrgora == 1)
             {
-                if (czas - czasprzycotwieraniegora < czas_przyc_dlugie_prog)
+                if (tryb_ustawien_433 <= 1)
                 {
-                    if (adcprzycbrgorna < 30)
+                    if (czas - czasprzycotwieraniegora < czas_przyc_dlugie_prog)
                     {
-                        warprzycbrgora = 0;
-                        komenda_otworz_gorna_brama();
+                        if (adcprzycbrgorna < 30)
+                        {
+                            warprzycbrgora = 0;
+                            komenda_otworz_gorna_brama();
+                        }
+                    }
+                    else
+                    {
+                        if (blad == 0)
+                        {
+                            if (tryb_ustawien_433 == 0)
+                            {
+                                tryb_ustawien_433 = 1;
+                            }
+                            else if (tryb_ustawien_433 == 1)
+                            {
+                                tryb_ustawien_433 = 2;
+                            }
+                        }
+                        warprzycbrgora = 3;
                     }
                 }
                 else
                 {
-                    if (blad == 0)
+                    if (adcprzycbrgorna < 30)
                     {
-                        if (tryb_ustawien_433 == 0)
-                        {
-                            tryb_ustawien_433 = 1;
-                        }
-                        else if (tryb_ustawien_433 == 1)
-                        {
-                            tryb_ustawien_433 = 2;
-                        }
+                        tryb_ustawien_433 = 5;
+                         warprzycbrgora = 0;
                     }
-                    warprzycbrgora = 3;
                 }
             }
 
             if (adcprzycbrgorna < 30 && warprzycbrgora == 3)
             {
                 warprzycbrgora = 0;
-                                if (tryb_ustawien_433 == 1)
-                        {
-                            tryb_ustawien_433 = 0;
-                        }
+                if (tryb_ustawien_433 == 1)
+                {
+                    tryb_ustawien_433 = 0;
+                }
             }
 
             if (otworzgorazopuznienie == 1) ///////////OPUŹNIENIE PRZYCISKU
@@ -3738,15 +3903,9 @@ void loop()
     {
         bladG = 0;
     }
-   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
- 
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     ///////////////////////ANIMACJE WYSWIETLACZA 7 SEGMETOWEGO///USTAWIENIA PILOTÓW 433MHz //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-
-
-
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
