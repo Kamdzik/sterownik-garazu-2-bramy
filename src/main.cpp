@@ -1,4 +1,4 @@
-// wersja 1.180
+// wersja 1.182  dodane 433Hmz
 //
 //////////////////////////////program do sterownika garażu, plik główny /////////////////////////////////////////////1
 /// biblioteki
@@ -9,6 +9,10 @@
 #include <avr/io.h>
 #define DECODE_NEC
 #include <IRremote.h>
+
+#include <EEPROM.h>
+#include <RCSwitch.h>
+
 ///
 // definicja pinów
 ///
@@ -67,13 +71,15 @@
 
 //////////////////////DODATKOWE PINY////////////////////////////
 #define podczerwien_ir A2 // PF2 // wejscie czujnika podczerwieni
-                          // #define wolny_INT6              6    // PE6 // pin wolny
-                          // #define wolny_INT7              7    // PE7 // pin wolny
-                          // #define wolny_prog/rx0          0    // PE0 // pin wolny
-                          // #define wolny_prog/tx0          1    // PE1 // pin wolny
-                          // #define wolny_tosc2             16   // PG3 // pin wolny
-                          // #define wolny_tosc1             17   // PG4 // pin wolny
-                          // #define wolny_npn               38   // PA7 // pin wolny
+#define inter_433hzm 6    // PE6 // wejscie pinu przerwania do odbiornika 433MHz
+
+// #define wolny_INT6              6    // PE6 // pin wolny
+// #define wolny_INT7              7    // PE7 // pin wolny
+// #define wolny_prog/rx0          0    // PE0 // pin wolny
+// #define wolny_prog/tx0          1    // PE1 // pin wolny
+// #define wolny_tosc2             16   // PG3 // pin wolny
+// #define wolny_tosc1             17   // PG4 // pin wolny
+// #define wolny_npn               38   // PA7 // pin wolny
 
 /// zmienne
 
@@ -151,7 +157,7 @@ byte trybzabezpamper1 = 0;      /// 1 powykryciu pradu wyłacza wsystkko 0 jesli
 int pwmwsilnkdol;
 float pradsilnikbrdolna, pradsilnikbrdolnachwila; // przechowanie pomiaru amper silnik dolny
 float maxpradsillnikbrdolnazam = 10.94;           // !!    // max Amper silnik zamykanie,,do ustawienia~~!!!!!!!!!!!!!!!!!!!!!!!!!!do ustawienia~~!!!!!!!!!!!!!!!!!!!!!!!!!
-float maxpradsillnikbrdolnaotw = 9.5;            // ust    // max Amper silnik otwieranie ,,do ustawienia~~!!!!!!!!!!!!!!!!!!!!!!!!!!do ustawienia~~!!!!!!!!!!!!!!!!!!!!!!!!!!
+float maxpradsillnikbrdolnaotw = 9.5;             // ust    // max Amper silnik otwieranie ,,do ustawienia~~!!!!!!!!!!!!!!!!!!!!!!!!!!do ustawienia~~!!!!!!!!!!!!!!!!!!!!!!!!!!
 float minpradsilnikdolny = 1.0;                   // minimalny prad jaki moze pobierać silnik dolny ponizej tej wartosci jest bład i wyłącza wszystko!!!!!!!!!!!!!!!!!!!!!!!!!!do ustawienia~~!!!!!!!!!!!!!!!!!!!!!!!!!
 
 int liczpomar1;                       /// pomiary amper
@@ -203,7 +209,7 @@ unsigned long czaswlaczeniazasilania1 = 7000; /// czas w ktorym napiecie zasilan
 unsigned long czaswysbladwylzasil, czaswylaczeniazass1;
 unsigned long czaswylaczeniazasilania1 = 7500; /// czas w ktorym napiecie zasilania silników ma zniknąć!!!!!!!!!!!!!!!!!!!!!!!!!!do ustawienia~~!!!!!!!!!!!!!!!!!!!!!!!!!!
 unsigned long czasprzycdlugie = 2000;          /// czas po jakim jest przycisniecie długie !!!!!!!!!!!!!!!!!!!!!!!!!!do ustawienia~~!!!!!!!!!!!!!!!!!!!!!!!!!!
-unsigned long czsaopuszczeniezwloka = 1400;    /// czas co ile ma odliczac w dół przy zwlekajacym zamykaniu bram !!!!!!!!!!!!!!!!!!!!!!!!!!do ustawienia~~!!!!!!!!!!!!!!!!!!!!!!!!!!
+unsigned long czsaopuszczeniezwloka = 3500;    /// czas co ile ma odliczac w dół przy zwlekajacym zamykaniu bram !!!!!!!!!!!!!!!!!!!!!!!!!!do ustawienia~~!!!!!!!!!!!!!!!!!!!!!!!!!!
 unsigned long czas_pwm_wlacz = 0;              // w ms  /// czas co jaki ma sie zwiekszac pwm silników!!!!!!!!!!!!!!!!!!!!!!!!!do ustawienia~~!!!!!!!!!!!!!!!!!!!!!!!!!!
 byte rodzaj_zasilania;                         // zmienna przechowujaca rodzaj zasilania  akuulator/siec/////0--> siec // 1-->akumulator
 byte zmien_czuj_zas;                           // /////0--> jest napiecie // 1-->nie ma napiecia na silnikach zmienna przechowujaca czujnik zasilania
@@ -360,6 +366,29 @@ byte zmienna_przelaczenia = 1;
 unsigned long czas_zabezpiecz_czujka_dom_licz;
 unsigned long czas_zabezpiecz_czujka_dom = 900000; ///->115min //// zabezpieczenie jesli szujka domu nie odpowie to po tym czasie lampy w domu sie wyłacza!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!do ustwienia!!!!!!!!!!!!
 ///
+///
+
+///
+///  zmienne dotyczące odbiornika RCswitch
+
+unsigned long dane_rcswitch;
+
+unsigned long tabRCswitch[5][3];///PIERWSZALICZBA WIERSZE --  , DRUGA KOLUMNY ||   !!!OD ZERA!!
+//      otwórz doł  ,,  zamnij dół ,, otwórz góra  ,,  zamnij góra 
+//          0               1              2               3
+///  0    XXXXX           XXXXX          XXXXX           XXXXX
+///  1    XXXXX           XXXXX          XXXXX           XXXXX
+///  2    XXXXX           XXXXX          XXXXX           XXXXX
+///  3    XXXXX           XXXXX          XXXXX           XXXXX
+///  4    XXXXX           XXXXX          XXXXX           XXXXX
+///  5    XXXXX           XXXXX          XXXXX           XXXXX
+
+
+
+/////
+
+
+/////
 RF24 radio(CE, CSN);
 
 const uint64_t pipe = 0x1AE2ECF96LL; // kanał odbioru
@@ -377,6 +406,9 @@ struct receivedData
     bool ch8;
 };
 receivedData rxData;
+
+RCSwitch mySwitch = RCSwitch(); ///
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // zmienne do uart 0 /pin programowania
@@ -1159,6 +1191,19 @@ void off_forewer_dolna_czujniki_szyny()
     wyl_zas_dol();
 }
 
+void writeLongIntoEEPROM(int address, long number)
+{
+    EEPROM.write(address, (number >> 24) & 0xFF);
+    EEPROM.write(address + 1, (number >> 16) & 0xFF);
+    EEPROM.write(address + 2, (number >> 8) & 0xFF);
+    EEPROM.write(address + 3, number & 0xFF);
+}
+
+long readLongFromEEPROM(int address)
+{
+    return ((long)EEPROM.read(address) << 24) + ((long)EEPROM.read(address + 1) << 16) + ((long)EEPROM.read(address + 2) << 8) + (long)EEPROM.read(address + 3);
+}
+
 void setup()
 {
     pinMode(buzzer, OUTPUT);
@@ -1241,6 +1286,8 @@ void setup()
     // nowe
     TCCR3A = 0b00111111; // 10 bit bez przeskalera poiprawny fazowo
     TCCR3B = 0b00000001;
+
+    mySwitch.enableReceive(inter_433hzm); // Receiver on interrupt 0 => that is pin #2
 
     for (int wl = 10; wl >= 0; wl--)
     {
@@ -1923,6 +1970,39 @@ void loop()
         IrReceiver.resume();
     }
     //
+    //ddfd
+
+    if (mySwitch.available())
+    {
+
+        dane_rcswitch = mySwitch.getReceivedValue();
+        mySwitch.resetAvailable();
+    }
+
+    if(dane_rcswitch == tabRCswitch[0][0]||dane_rcswitch == tabRCswitch[1][0]||dane_rcswitch == tabRCswitch[2][0]||dane_rcswitch == tabRCswitch[3][0]||dane_rcswitch == tabRCswitch[4][0]||dane_rcswitch == tabRCswitch[5][0]){
+      dane_rcswitch = 0;
+      komenda_otworz_dolna_brama();
+     }  
+
+    if(dane_rcswitch == tabRCswitch[0][1]||dane_rcswitch == tabRCswitch[1][1]||dane_rcswitch == tabRCswitch[2][1]||dane_rcswitch == tabRCswitch[3][1]||dane_rcswitch == tabRCswitch[4][1]||dane_rcswitch == tabRCswitch[5][1]){
+      dane_rcswitch = 0;
+      komenda_zamknij_dolna_brama();
+     } 
+
+    if(dane_rcswitch == tabRCswitch[0][2]||dane_rcswitch == tabRCswitch[1][2]||dane_rcswitch == tabRCswitch[2][2]||dane_rcswitch == tabRCswitch[3][2]||dane_rcswitch == tabRCswitch[4][2]||dane_rcswitch == tabRCswitch[5][2]){
+      dane_rcswitch = 0;
+      komenda_otworz_gorna_brama();
+     } 
+
+    if(dane_rcswitch == tabRCswitch[0][3]||dane_rcswitch == tabRCswitch[1][3]||dane_rcswitch == tabRCswitch[2][3]||dane_rcswitch == tabRCswitch[3][3]||dane_rcswitch == tabRCswitch[4][3]||dane_rcswitch == tabRCswitch[5][3]){
+      dane_rcswitch = 0;
+      komenda_zamknij_gorna_brama();
+     } 
+
+
+     /////////////////////////////////////////////////////////////////////////////////////////////////
+
+
     /////////// odczyt z nrf24L01/////////////////////////////////////////////////////////////////////
     while (radio.available())
     {
@@ -2706,7 +2786,7 @@ void loop()
             else
             {
                 czas_zwloki_brdolna_zamknij_prad_licz = czas;
-            } 
+            }
         }
 
         if (bladF == 20 && czas - czasbladpraddolny > czaswyswietlaniabledow)
