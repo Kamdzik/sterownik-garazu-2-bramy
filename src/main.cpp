@@ -372,6 +372,7 @@ unsigned long czas_zabezpiecz_czujka_dom = 900000; ///->115min //// zabezpieczen
 ///  zmienne dotyczące odbiornika RCswitch
 
 unsigned long dane_rcswitch;
+byte tryb_ustawien_433 = 0;
 
 unsigned long tabRCswitch[5][3];///PIERWSZALICZBA WIERSZE --  , DRUGA KOLUMNY ||   !!!OD ZERA!!
 //      otwórz doł  ,,  zamnij dół ,, otwórz góra  ,,  zamnij góra 
