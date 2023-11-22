@@ -94,7 +94,7 @@ byte animacjaprawy[] = {0b11011111, 0b11001111, 0b11101111, 0b11101110, 0b111111
 byte animacjaobaprzeciwnie[] = {0b11011011, 0b10010011, 0b10110111, 0b10110110, 0b11111110, 0b11101100, 0b11101101, 0b11001001, 0b11011011, 0b11111111}; //       |        ///
 
 //
-unsigned long czas, czasanimacji, czasbledu = 0;
+unsigned long czas, czasanimacji, czasanimacji_pilot433, czasbledu = 0;
 int a = 9, b = 0, aaa = 5;
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -372,10 +372,16 @@ unsigned long czas_zabezpiecz_czujka_dom = 900000; ///->115min //// zabezpieczen
 ///  zmienne dotyczące odbiornika RCswitch
 
 unsigned long dane_rcswitch;
-byte tryb_ustawien_433 = 0;                   // tryb usatwien 433   1-pozwolenie z pierwszego  przycisku,,, 2-pozwolenie z drugiego przycisku ,, 3 włączenie programowania kodów
-unsigned long czas_przyc_dlugie_prog = 60000; // 1min po tym czasie włącza sie usatwienie pilota
-int nr_pilota = 0;                            /// 1,2,3,4,5,6//  0,16,32,64,128,256
-unsigned long tabRCswitch_bufor[6];           // bufor odczytanych komend przy zapisie
+byte tryb_ustawien_433 = 0; // tryb usatwien 433   1-pozwolenie z pierwszego  przycisku,,, 2-pozwolenie z drugiego przycisku ,, 3++ włączenie programowania kodów
+// tryb_ustawien_433 == 3   otwórz brama dolna
+// tryb_ustawien_433 == 4  zamknij brama dolna
+// tryb_ustawien_433 == 5  otwórz brama górna
+// tryb_ustawien_433 == 6  zamknij brama górna
+
+unsigned long czas_przyc_dlugie_prog = 60000;     // 1min po tym czasie włącza sie usatwienie pilota
+int nr_pilota = 0;                                /// 1,2,3,4,5,6//  0,16,32,64,128,256
+int nr_dwa_eeprom_pilot_433, nr_eeprom_pilot_433; // zmienne do numerów kolumn i wierszy przy odczycie z pamięci
+unsigned long tabRCswitch_bufor[6];               // bufor odczytanych komend przy zapisie
 byte numer_tabRCswitch_bufor = 0;
 unsigned long tabRCswitch[5][3]; /// PIERWSZALICZBA WIERSZE --  , DRUGA KOLUMNY ||   !!!OD ZERA!!
 //      otwórz doł  ,,  zamnij dół ,, otwórz góra  ,,  zamnij góra
@@ -1289,6 +1295,60 @@ void setup()
 
     mySwitch.enableReceive(inter_433hzm); // Receiver on interrupt 0 => that is pin #2
 
+    /// odczyt z pamięci eeprom //////
+    /// nr_pilota  /// 1,2,3,4,5,6// cyfrowo: 0,16,32,64,128,256
+
+    for (int wiersze_pilot_433 = 0; wiersze_pilot_433 <= 5; wiersze_pilot_433++)
+    {
+        if (wiersze_pilot_433 == 0)
+        {
+            nr_dwa_eeprom_pilot_433 = 0;
+        }
+        if (wiersze_pilot_433 == 1)
+        {
+            nr_dwa_eeprom_pilot_433 = 16;
+        }
+        if (wiersze_pilot_433 == 2)
+        {
+            nr_dwa_eeprom_pilot_433 = 32;
+        }
+        if (wiersze_pilot_433 == 3)
+        {
+            nr_dwa_eeprom_pilot_433 = 64;
+        }
+        if (wiersze_pilot_433 == 4)
+        {
+            nr_dwa_eeprom_pilot_433 = 128;
+        }
+        if (wiersze_pilot_433 == 5)
+        {
+            nr_dwa_eeprom_pilot_433 = 256;
+        }
+
+        for (int kolumny_pilot_433 = 0; kolumny_pilot_433 <= 3; kolumny_pilot_433++)
+        {
+
+            if (kolumny_pilot_433 == 0)
+            {
+                nr_eeprom_pilot_433 = 0;
+            }
+            if (kolumny_pilot_433 == 1)
+            {
+                nr_eeprom_pilot_433 = 4;
+            }
+            if (kolumny_pilot_433 == 2)
+            {
+                nr_eeprom_pilot_433 = 8;
+            }
+            if (kolumny_pilot_433 == 3)
+            {
+                nr_eeprom_pilot_433 = 12;
+            }
+
+            tabRCswitch[wiersze_pilot_433][kolumny_pilot_433] = readLongFromEEPROM((nr_eeprom_pilot_433 + nr_dwa_eeprom_pilot_433));
+        }
+    }
+
     for (int wl = 10; wl >= 0; wl--)
     {
         pcf8574(cyfrybledow[wl]);
@@ -1333,6 +1393,7 @@ void loop()
         czaspikaczu2 = czas;
         czaspikaczu3 = czas;
         czasanimacji = czas;
+        czasanimacji_pilot433 = czas;
         czasbledu = czas;
         czaspomiarfotorezystor = czas;
         czasprzyczamykaniedolnaanimacja = czas;
@@ -1784,9 +1845,19 @@ void loop()
                         }
                         else
                         { // wyjście z trybu programowania pilotów 433
-                            nr_pilota = 0;
-                            tryb_ustawien_433 = 0;
-                            czaspikaczu2 = czas;
+
+                            if (tryb_ustawien_433 == 2)
+                            {
+                                nr_pilota = 0;
+                                czaspikaczu2 = czas;
+                                tryb_ustawien_433 = 0;
+                            }
+
+                            if (tryb_ustawien_433 > 2)
+                            {
+                                tryb_ustawien_433 = 2;
+                                czaspikaczu1 = czas;
+                            }
                         }
                         warprzyc_wewn = 1;
                     }
@@ -1954,7 +2025,7 @@ void loop()
     // IR remote
     if (IrReceiver.decode())
     {
-        if (tryb_ustawien_433 == 0)
+        if (tryb_ustawien_433 <= 1)
         {
             if (IrReceiver.decodedIRData.decodedRawData == 0xC159B44)
             { // zamknij dolna brama
@@ -2125,7 +2196,7 @@ void loop()
         }
     }
 
-    if (tryb_ustawien_433 == 0)
+    if (tryb_ustawien_433 <= 1)
     {
         if (dane_rcswitch == tabRCswitch[0][0] || dane_rcswitch == tabRCswitch[1][0] || dane_rcswitch == tabRCswitch[2][0] || dane_rcswitch == tabRCswitch[3][0] || dane_rcswitch == tabRCswitch[4][0] || dane_rcswitch == tabRCswitch[5][0])
         {
@@ -2164,7 +2235,7 @@ void loop()
     {
         rxData.numerpilota = 0;
 
-        if (tryb_ustawien_433 == 0)
+        if (tryb_ustawien_433 <= 1)
         {
             if (rxData.ch1 == 1) //////////otwórz brama dol 1  ///////// kanał  1
             {
@@ -2347,7 +2418,7 @@ void loop()
                     if (adcprzycbrdolna < 30)
                     {
                         tryb_ustawien_433 = 3;
-                         warprzycbrdul = 0;
+                        warprzycbrdul = 0;
                     }
                 }
             }
@@ -3126,7 +3197,7 @@ void loop()
                     if (adcprzycbrgorna < 30)
                     {
                         tryb_ustawien_433 = 6;
-                         warprzycbrgora = 0;
+                        warprzycbrgora = 0;
                     }
                 }
             }
@@ -3179,7 +3250,7 @@ void loop()
                     if (adcprzycbrgorna < 30)
                     {
                         tryb_ustawien_433 = 5;
-                         warprzycbrgora = 0;
+                        warprzycbrgora = 0;
                     }
                 }
             }
@@ -3907,10 +3978,121 @@ void loop()
 
     ///////////////////////ANIMACJE WYSWIETLACZA 7 SEGMETOWEGO///USTAWIENIA PILOTÓW 433MHz //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    if (blad == 0 && tryb_ustawien_433 >= 2)
+    {
+        // tryb_ustawien_433 == 2 tryb programowania mruga numer pilota
+        //  tryb_ustawien_433 == 3   otwórz brama dolna
+        //  tryb_ustawien_433 == 4  zamknij brama dolna
+        //  tryb_ustawien_433 == 5  otwórz brama górna
+        //  tryb_ustawien_433 == 6  zamknij brama górna
+
+        // int nr_pilota = 0;    /// 1,2,3,4,5,6//  0,16,32,64,128,256
+        byte animacja_pilot_k = 0;
+
+        if (czas - czasanimacji_pilot433 > 310)
+        {
+            animacja_pilot_k = !animacja_pilot_k;
+
+            if (animacja_pilot_k == 1) // wyswietla numer pilota
+            {
+                if (nr_pilota == 0)
+                {
+                    pcf8574(cyfrybledow[1]); /// pilot "0"
+                }
+                else if (nr_pilota == 16)
+                {
+                    pcf8574(cyfrybledow[2]); /// pilot "1"
+                }
+                else if (nr_pilota == 32)
+                {
+                    pcf8574(cyfrybledow[3]); /// pilot "2"
+                }
+                else if (nr_pilota == 64)
+                {
+                    pcf8574(cyfrybledow[4]); /// pilot "3"
+                }
+                else if (nr_pilota == 128)
+                {
+                    pcf8574(cyfrybledow[5]); /// pilot "4"
+                }
+                else if (nr_pilota == 256)
+                {
+                    pcf8574(cyfrybledow[6]); /// pilot "5"
+                }
+            }
+            else /// wyświetla ruch bramy jaki zostanie zaprogramowany
+            {
+                if (tryb_ustawien_433 == 2)
+                {
+                pcf8574(cyfrybledow[0]); /// pusty
+                }
+
+                if (tryb_ustawien_433 == 3)
+                { //  otwórz brama dolna
+
+                    if (czas - czasanimacji > 30)
+                    {
+                        pcf8574(animacjalewy[a]);
+                        a++;
+                        if (a > 9)
+                        {
+                            a = 0;
+                        }
+                        czasanimacji = czas;
+                    }
+                }
+
+                if (tryb_ustawien_433 == 4)
+                { //  zamknij brama dolna
+                    if (czas - czasanimacji > 30)
+                    {
+                        pcf8574(animacjalewy[a]);
+                        a--;
+                        if (a < 0)
+                        {
+                            a = 9;
+                        }
+                        czasanimacji = czas;
+                    }
+                }
+
+                if (tryb_ustawien_433 == 5)
+                { //  otwórz brama górna
+                    if (czas - czasanimacji > 30)
+                    {
+                        pcf8574(animacjaprawy[a]);
+                        a++;
+                        if (a > 9)
+                        {
+                            a = 0;
+                        }
+                        czasanimacji = czas;
+                    }
+                }
+
+                if (tryb_ustawien_433 == 6)
+                { //  zamknij brama górna
+                    if (czas - czasanimacji > 30)
+                    {
+                        pcf8574(animacjaprawy[a]);
+                        a--;
+                        if (a < 0)
+                        {
+                            a = 9;
+                        }
+                        czasanimacji = czas;
+                    }
+                }
+            }
+
+            czasanimacji_pilot433 = czas;
+        }
+    }
+
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     ///////////////////////ANIMACJE WYSWIETLACZA 7 SEGMETOWEGO//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    if (blad == 0 && otworzdolnazopuznienie == 0 && otworzgorazopuznienie == 0 && tryb_ustawien_433 == 0)
+    if (blad == 0 && otworzdolnazopuznienie == 0 && otworzgorazopuznienie == 0 && tryb_ustawien_433 <= 1)
     {
 
         if (brama1 == 1 && brama11 == 0 && brama2 == 0 && brama22 == 0)
@@ -4119,6 +4301,10 @@ void loop()
 
     if (blad == 1)
     {
+        tryb_ustawien_433=0;
+        nr_pilota=0;
+
+
         if (czas - czasbledu > (unsigned long)550)
         {
             if (aa == 1)
