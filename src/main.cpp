@@ -380,6 +380,7 @@ byte tryb_ustawien_433 = 0; // tryb usatwien 433   1-pozwolenie z pierwszego  pr
 
 unsigned long czas_przyc_dlugie_prog = 60000;     // 1min po tym czasie włącza sie usatwienie pilota
 int nr_pilota = 0;                                /// 1,2,3,4,5,6//  0,16,32,64,128,256
+byte nr_pilota_licz_plus = 0;                     // pomoc w liczeniu pilotów
 int nr_dwa_eeprom_pilot_433, nr_eeprom_pilot_433; // zmienne do numerów kolumn i wierszy przy odczycie z pamięci
 unsigned long tabRCswitch_bufor[6];               // bufor odczytanych komend przy zapisie
 byte numer_tabRCswitch_bufor = 0;
@@ -1793,29 +1794,37 @@ void loop()
                     {
                         czaspikaczu1 = czas;
                         // 0,16,32,64,128,256
-                        if (nr_pilota == 128)
+
+                        nr_pilota_licz_plus++;
+
+                        if (nr_pilota_licz_plus > 5)
                         {
-                            nr_pilota = 256;
+                            nr_pilota_licz_plus = 0;
                         }
 
-                        if (nr_pilota == 64)
+                        if (nr_pilota_licz_plus == 0)
                         {
-                            nr_pilota = 128;
+                            nr_pilota = 0;
                         }
-
-                        if (nr_pilota == 32)
+                        else if (nr_pilota_licz_plus == 1)
                         {
-                            nr_pilota = 64;
+                            nr_pilota = 16;
                         }
-
-                        if (nr_pilota == 16)
+                        else if (nr_pilota_licz_plus == 2)
                         {
                             nr_pilota = 32;
                         }
-
-                        if (nr_pilota == 0)
+                        else if (nr_pilota_licz_plus == 3)
                         {
-                            nr_pilota = 16;
+                            nr_pilota = 64;
+                        }
+                        else if (nr_pilota_licz_plus == 4)
+                        {
+                            nr_pilota = 128;
+                        }
+                        else if (nr_pilota_licz_plus == 5)
+                        {
+                            nr_pilota = 256;
                         }
                     }
 
@@ -4024,7 +4033,7 @@ void loop()
             {
                 if (tryb_ustawien_433 == 2)
                 {
-                pcf8574(cyfrybledow[0]); /// pusty
+                    pcf8574(cyfrybledow[0]); /// pusty
                 }
 
                 if (tryb_ustawien_433 == 3)
@@ -4301,9 +4310,8 @@ void loop()
 
     if (blad == 1)
     {
-        tryb_ustawien_433=0;
-        nr_pilota=0;
-
+        tryb_ustawien_433 = 0;
+        nr_pilota = 0;
 
         if (czas - czasbledu > (unsigned long)550)
         {
