@@ -394,6 +394,8 @@ unsigned long tabRCswitch[5][3]; /// PIERWSZALICZBA WIERSZE --  , DRUGA KOLUMNY 
 ///  4    XXXXX           XXXXX          XXXXX           XXXXX
 ///  5    XXXXX           XXXXX          XXXXX           XXXXX
 
+unsigned long czas_pilot1_klik, czas_pilot2_klik, czas_pilot3_klik, czas_pilot4_klik; // zmienne czasowe które sa do opóźnienia dwukliku
+unsigned long czas_pilot_klik_dwuklik = 120;                                          //  czas po którym bedzie wykonany dwuklik przycisku 433Mhz
 /////
 
 /////
@@ -2210,25 +2212,43 @@ void loop()
         if (dane_rcswitch == tabRCswitch[0][0] || dane_rcswitch == tabRCswitch[1][0] || dane_rcswitch == tabRCswitch[2][0] || dane_rcswitch == tabRCswitch[3][0] || dane_rcswitch == tabRCswitch[4][0] || dane_rcswitch == tabRCswitch[5][0])
         {
             dane_rcswitch = 0;
-            komenda_otworz_dolna_brama();
+            if (czas - czas_pilot1_klik > czas_pilot_klik_dwuklik)
+            {
+                komenda_otworz_dolna_brama();
+            }
+            czas_pilot1_klik = czas;
         }
 
         if (dane_rcswitch == tabRCswitch[0][1] || dane_rcswitch == tabRCswitch[1][1] || dane_rcswitch == tabRCswitch[2][1] || dane_rcswitch == tabRCswitch[3][1] || dane_rcswitch == tabRCswitch[4][1] || dane_rcswitch == tabRCswitch[5][1])
         {
             dane_rcswitch = 0;
-            komenda_zamknij_dolna_brama();
+            if (czas - czas_pilot2_klik > czas_pilot_klik_dwuklik)
+            {
+                komenda_zamknij_dolna_brama();
+            }
+
+            czas_pilot2_klik = czas;
         }
 
         if (dane_rcswitch == tabRCswitch[0][2] || dane_rcswitch == tabRCswitch[1][2] || dane_rcswitch == tabRCswitch[2][2] || dane_rcswitch == tabRCswitch[3][2] || dane_rcswitch == tabRCswitch[4][2] || dane_rcswitch == tabRCswitch[5][2])
         {
             dane_rcswitch = 0;
-            komenda_otworz_gorna_brama();
+            if (czas - czas_pilot3_klik > czas_pilot_klik_dwuklik)
+            {
+                komenda_otworz_gorna_brama();
+            }
+            czas_pilot3_klik = czas;
         }
 
         if (dane_rcswitch == tabRCswitch[0][3] || dane_rcswitch == tabRCswitch[1][3] || dane_rcswitch == tabRCswitch[2][3] || dane_rcswitch == tabRCswitch[3][3] || dane_rcswitch == tabRCswitch[4][3] || dane_rcswitch == tabRCswitch[5][3])
         {
             dane_rcswitch = 0;
-            komenda_zamknij_gorna_brama();
+            if (czas - czas_pilot4_klik > czas_pilot_klik_dwuklik)
+            {
+                komenda_zamknij_gorna_brama();
+            }
+
+            czas_pilot4_klik = czas;
         }
     }
 
