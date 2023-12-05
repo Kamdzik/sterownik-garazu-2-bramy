@@ -2239,7 +2239,7 @@ void loop()
             }
             czas_pilot3_klik = czas;
         }
-
+/// działa
         if (dane_rcswitch == tabRCswitch[0][3] || dane_rcswitch == tabRCswitch[1][3] || dane_rcswitch == tabRCswitch[2][3] || dane_rcswitch == tabRCswitch[3][3] || dane_rcswitch == tabRCswitch[4][3] || dane_rcswitch == tabRCswitch[5][3])
         {
             dane_rcswitch = 0;
