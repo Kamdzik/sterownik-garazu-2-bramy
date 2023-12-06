@@ -378,7 +378,7 @@ byte tryb_ustawien_433 = 0; // tryb usatwien 433   1-pozwolenie z pierwszego  pr
 // tryb_ustawien_433 == 5  otwórz brama górna
 // tryb_ustawien_433 == 6  zamknij brama górna
 
-unsigned long czas_przyc_dlugie_prog = 60000;     // 1min po tym czasie włącza sie usatwienie pilota
+unsigned long czas_przyc_dlugie_prog = 10000;     // 1min po tym czasie włącza sie usatwienie pilota
 int nr_pilota = 0;                                /// 1,2,3,4,5,6//  0,16,32,64,128,256
 byte nr_pilota_licz_plus = 0;                     // pomoc w liczeniu pilotów
 int nr_dwa_eeprom_pilot_433, nr_eeprom_pilot_433; // zmienne do numerów kolumn i wierszy przy odczycie z pamięci
@@ -396,6 +396,9 @@ unsigned long tabRCswitch[5][3]; /// PIERWSZALICZBA WIERSZE --  , DRUGA KOLUMNY 
 
 unsigned long czas_pilot1_klik, czas_pilot2_klik, czas_pilot3_klik, czas_pilot4_klik; // zmienne czasowe które sa do opóźnienia dwukliku
 unsigned long czas_pilot_klik_dwuklik = 120;                                          //  czas po którym bedzie wykonany dwuklik przycisku 433Mhz
+unsigned long czas_pilot_czas_ustawien = 100000;                                      // zas po którym ustawienia pilotów sie
+unsigned long czas_pilot_czas_ustawien_licz;
+byte animacja_pilot_k = 0;
 /////
 
 /////
@@ -1202,10 +1205,10 @@ void off_forewer_dolna_czujniki_szyny()
 
 void writeLongIntoEEPROM(int address, long number)
 {
-    EEPROM.write(address, (number >> 24) & 0xFF);
-    EEPROM.write(address + 1, (number >> 16) & 0xFF);
-    EEPROM.write(address + 2, (number >> 8) & 0xFF);
-    EEPROM.write(address + 3, number & 0xFF);
+    EEPROM.update(address, (number >> 24) & 0xFF);
+    EEPROM.update(address + 1, (number >> 16) & 0xFF);
+    EEPROM.update(address + 2, (number >> 8) & 0xFF);
+    EEPROM.update(address + 3, number & 0xFF);
 }
 
 long readLongFromEEPROM(int address)
@@ -1862,12 +1865,14 @@ void loop()
                                 nr_pilota = 0;
                                 czaspikaczu2 = czas;
                                 tryb_ustawien_433 = 0;
+                                pcf8574(cyfrybledow[0]);
                             }
 
                             if (tryb_ustawien_433 > 2)
                             {
                                 tryb_ustawien_433 = 2;
                                 czaspikaczu1 = czas;
+                                czas_pilot_czas_ustawien_licz = czas;
                             }
                         }
                         warprzyc_wewn = 1;
@@ -2109,6 +2114,7 @@ void loop()
         // 2  tryb programowania
         if (tryb_ustawien_433 >= 2 && tryb_ustawien_433 <= 6)
         {
+            czas_pilot_czas_ustawien_licz = czas;
             // tryb_ustawien_433 == 3   otwórz brama dolna
             // tryb_ustawien_433 == 4  zamknij brama dolna
             // tryb_ustawien_433 == 5  otwórz brama górna
@@ -2239,7 +2245,7 @@ void loop()
             }
             czas_pilot3_klik = czas;
         }
-/// działa
+
         if (dane_rcswitch == tabRCswitch[0][3] || dane_rcswitch == tabRCswitch[1][3] || dane_rcswitch == tabRCswitch[2][3] || dane_rcswitch == tabRCswitch[3][3] || dane_rcswitch == tabRCswitch[4][3] || dane_rcswitch == tabRCswitch[5][3])
         {
             dane_rcswitch = 0;
@@ -2249,6 +2255,15 @@ void loop()
             }
 
             czas_pilot4_klik = czas;
+        }
+    }
+    else
+    {
+        if (czas - czas_pilot_czas_ustawien_licz > czas_pilot_czas_ustawien)
+        {
+            nr_pilota = 0;
+            czaspikaczu2 = czas;
+            tryb_ustawien_433 = 0;
         }
     }
 
@@ -2393,6 +2408,7 @@ void loop()
                 {
                     if (adcprzycbrdolna < 30)
                     {
+                        czas_pilot_czas_ustawien_licz = czas;
                         tryb_ustawien_433 = 4;
                         warprzycbrdul = 0;
                     }
@@ -2437,6 +2453,8 @@ void loop()
                             else if (tryb_ustawien_433 == 1)
                             {
                                 tryb_ustawien_433 = 2;
+                                czas_pilot_czas_ustawien_licz = czas;
+                                czaspikaczu2 = czas;
                             }
                         }
                         warprzycbrdul = 3;
@@ -2446,6 +2464,7 @@ void loop()
                 {
                     if (adcprzycbrdolna < 30)
                     {
+                        czas_pilot_czas_ustawien_licz = czas;
                         tryb_ustawien_433 = 3;
                         warprzycbrdul = 0;
                     }
@@ -3225,6 +3244,7 @@ void loop()
                 {
                     if (adcprzycbrgorna < 30)
                     {
+                        czas_pilot_czas_ustawien_licz = czas;
                         tryb_ustawien_433 = 6;
                         warprzycbrgora = 0;
                     }
@@ -3268,7 +3288,9 @@ void loop()
                             }
                             else if (tryb_ustawien_433 == 1)
                             {
+                                czas_pilot_czas_ustawien_licz = czas;
                                 tryb_ustawien_433 = 2;
+                                czaspikaczu2 = czas;
                             }
                         }
                         warprzycbrgora = 3;
@@ -3278,6 +3300,7 @@ void loop()
                 {
                     if (adcprzycbrgorna < 30)
                     {
+                        czas_pilot_czas_ustawien_licz = czas;
                         tryb_ustawien_433 = 5;
                         warprzycbrgora = 0;
                     }
@@ -4016,105 +4039,114 @@ void loop()
         //  tryb_ustawien_433 == 6  zamknij brama górna
 
         // int nr_pilota = 0;    /// 1,2,3,4,5,6//  0,16,32,64,128,256
-        byte animacja_pilot_k = 0;
 
-        if (czas - czasanimacji_pilot433 > 310)
+        if (czas - czasanimacji_pilot433 > 700)
         {
             animacja_pilot_k = !animacja_pilot_k;
-
-            if (animacja_pilot_k == 1) // wyswietla numer pilota
-            {
-                if (nr_pilota == 0)
-                {
-                    pcf8574(cyfrybledow[1]); /// pilot "0"
-                }
-                else if (nr_pilota == 16)
-                {
-                    pcf8574(cyfrybledow[2]); /// pilot "1"
-                }
-                else if (nr_pilota == 32)
-                {
-                    pcf8574(cyfrybledow[3]); /// pilot "2"
-                }
-                else if (nr_pilota == 64)
-                {
-                    pcf8574(cyfrybledow[4]); /// pilot "3"
-                }
-                else if (nr_pilota == 128)
-                {
-                    pcf8574(cyfrybledow[5]); /// pilot "4"
-                }
-                else if (nr_pilota == 256)
-                {
-                    pcf8574(cyfrybledow[6]); /// pilot "5"
-                }
-            }
-            else /// wyświetla ruch bramy jaki zostanie zaprogramowany
-            {
-                if (tryb_ustawien_433 == 2)
-                {
-                    pcf8574(cyfrybledow[0]); /// pusty
-                }
-
-                if (tryb_ustawien_433 == 3)
-                { //  otwórz brama dolna
-
-                    if (czas - czasanimacji > 30)
-                    {
-                        pcf8574(animacjalewy[a]);
-                        a++;
-                        if (a > 9)
-                        {
-                            a = 0;
-                        }
-                        czasanimacji = czas;
-                    }
-                }
-
-                if (tryb_ustawien_433 == 4)
-                { //  zamknij brama dolna
-                    if (czas - czasanimacji > 30)
-                    {
-                        pcf8574(animacjalewy[a]);
-                        a--;
-                        if (a < 0)
-                        {
-                            a = 9;
-                        }
-                        czasanimacji = czas;
-                    }
-                }
-
-                if (tryb_ustawien_433 == 5)
-                { //  otwórz brama górna
-                    if (czas - czasanimacji > 30)
-                    {
-                        pcf8574(animacjaprawy[a]);
-                        a++;
-                        if (a > 9)
-                        {
-                            a = 0;
-                        }
-                        czasanimacji = czas;
-                    }
-                }
-
-                if (tryb_ustawien_433 == 6)
-                { //  zamknij brama górna
-                    if (czas - czasanimacji > 30)
-                    {
-                        pcf8574(animacjaprawy[a]);
-                        a--;
-                        if (a < 0)
-                        {
-                            a = 9;
-                        }
-                        czasanimacji = czas;
-                    }
-                }
-            }
-
             czasanimacji_pilot433 = czas;
+        }
+
+        if (animacja_pilot_k == 1) // wyswietla numer pilota
+        {
+
+            if (tryb_ustawien_433 == 3 || tryb_ustawien_433 == 5)
+            {
+                a = 0;
+            }
+
+            if (tryb_ustawien_433 == 4 || tryb_ustawien_433 == 6)
+            {
+                a = 9;
+            }
+
+            if (nr_pilota == 0)
+            {
+                pcf8574(cyfrybledow[1]); /// pilot "0"
+            }
+            else if (nr_pilota == 16)
+            {
+                pcf8574(cyfrybledow[2]); /// pilot "1"
+            }
+            else if (nr_pilota == 32)
+            {
+                pcf8574(cyfrybledow[3]); /// pilot "2"
+            }
+            else if (nr_pilota == 64)
+            {
+                pcf8574(cyfrybledow[4]); /// pilot "3"
+            }
+            else if (nr_pilota == 128)
+            {
+                pcf8574(cyfrybledow[5]); /// pilot "4"
+            }
+            else if (nr_pilota == 256)
+            {
+                pcf8574(cyfrybledow[6]); /// pilot "5"
+            }
+        }
+        else /// wyświetla ruch bramy jaki zostanie zaprogramowany
+        {
+            if (tryb_ustawien_433 == 2)
+            {
+                pcf8574(cyfrybledow[0]); /// pusty
+            }
+
+            if (tryb_ustawien_433 == 3)
+            { //  otwórz brama dolna
+
+                if (czas - czasanimacji > 60)
+                {
+                    pcf8574(animacjalewy[a]);
+                    a++;
+                    if (a > 9)
+                    {
+                        a = 0;
+                    }
+                    czasanimacji = czas;
+                }
+            }
+
+            if (tryb_ustawien_433 == 4)
+            { //  zamknij brama dolna
+                if (czas - czasanimacji > 60)
+                {
+                    pcf8574(animacjalewy[a]);
+                    a--;
+                    if (a < 0)
+                    {
+                        a = 9;
+                    }
+                    czasanimacji = czas;
+                }
+            }
+
+            if (tryb_ustawien_433 == 5)
+            { //  otwórz brama górna
+                if (czas - czasanimacji > 60)
+                {
+                    pcf8574(animacjaprawy[a]);
+                    a++;
+                    if (a > 9)
+                    {
+                        a = 0;
+                    }
+                    czasanimacji = czas;
+                }
+            }
+
+            if (tryb_ustawien_433 == 6)
+            { //  zamknij brama górna
+                if (czas - czasanimacji > 60)
+                {
+                    pcf8574(animacjaprawy[a]);
+                    a--;
+                    if (a < 0)
+                    {
+                        a = 9;
+                    }
+                    czasanimacji = czas;
+                }
+            }
         }
     }
 
