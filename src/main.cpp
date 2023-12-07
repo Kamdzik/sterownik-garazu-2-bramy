@@ -1203,7 +1203,7 @@ void off_forewer_dolna_czujniki_szyny()
     wyl_zas_dol();
 }
 
-void writeLongIntoEEPROM(int address, long number)
+void writeLongIntoEEPROM(int address, unsigned long number)
 {
     EEPROM.update(address, (number >> 24) & 0xFF);
     EEPROM.update(address + 1, (number >> 16) & 0xFF);
@@ -1211,9 +1211,64 @@ void writeLongIntoEEPROM(int address, long number)
     EEPROM.update(address + 3, number & 0xFF);
 }
 
-long readLongFromEEPROM(int address)
+unsigned long readLongFromEEPROM(int address)
 {
-    return ((long)EEPROM.read(address) << 24) + ((long)EEPROM.read(address + 1) << 16) + ((long)EEPROM.read(address + 2) << 8) + (long)EEPROM.read(address + 3);
+    return ((unsigned long)EEPROM.read(address) << 24) + ((unsigned long)EEPROM.read(address + 1) << 16) + ((unsigned long)EEPROM.read(address + 2) << 8) + (unsigned long)EEPROM.read(address + 3);
+}
+
+void odczyt_Pamieci_EEprom()
+{
+
+    for (int wiersze_pilot_433 = 0; wiersze_pilot_433 <= 5; wiersze_pilot_433++)
+    {
+        if (wiersze_pilot_433 == 0)
+        {
+            nr_dwa_eeprom_pilot_433 = 0;
+        }
+        if (wiersze_pilot_433 == 1)
+        {
+            nr_dwa_eeprom_pilot_433 = 16;
+        }
+        if (wiersze_pilot_433 == 2)
+        {
+            nr_dwa_eeprom_pilot_433 = 32;
+        }
+        if (wiersze_pilot_433 == 3)
+        {
+            nr_dwa_eeprom_pilot_433 = 64;
+        }
+        if (wiersze_pilot_433 == 4)
+        {
+            nr_dwa_eeprom_pilot_433 = 128;
+        }
+        if (wiersze_pilot_433 == 5)
+        {
+            nr_dwa_eeprom_pilot_433 = 256;
+        }
+
+        for (int kolumny_pilot_433 = 0; kolumny_pilot_433 <= 3; kolumny_pilot_433++)
+        {
+
+            if (kolumny_pilot_433 == 0)
+            {
+                nr_eeprom_pilot_433 = 0;
+            }
+            if (kolumny_pilot_433 == 1)
+            {
+                nr_eeprom_pilot_433 = 4;
+            }
+            if (kolumny_pilot_433 == 2)
+            {
+                nr_eeprom_pilot_433 = 8;
+            }
+            if (kolumny_pilot_433 == 3)
+            {
+                nr_eeprom_pilot_433 = 12;
+            }
+
+            tabRCswitch[wiersze_pilot_433][kolumny_pilot_433] = readLongFromEEPROM((nr_eeprom_pilot_433 + nr_dwa_eeprom_pilot_433));
+        }
+    }
 }
 
 void setup()
@@ -1303,57 +1358,7 @@ void setup()
 
     /// odczyt z pamięci eeprom //////
     /// nr_pilota  /// 1,2,3,4,5,6// cyfrowo: 0,16,32,64,128,256
-
-    for (int wiersze_pilot_433 = 0; wiersze_pilot_433 <= 5; wiersze_pilot_433++)
-    {
-        if (wiersze_pilot_433 == 0)
-        {
-            nr_dwa_eeprom_pilot_433 = 0;
-        }
-        if (wiersze_pilot_433 == 1)
-        {
-            nr_dwa_eeprom_pilot_433 = 16;
-        }
-        if (wiersze_pilot_433 == 2)
-        {
-            nr_dwa_eeprom_pilot_433 = 32;
-        }
-        if (wiersze_pilot_433 == 3)
-        {
-            nr_dwa_eeprom_pilot_433 = 64;
-        }
-        if (wiersze_pilot_433 == 4)
-        {
-            nr_dwa_eeprom_pilot_433 = 128;
-        }
-        if (wiersze_pilot_433 == 5)
-        {
-            nr_dwa_eeprom_pilot_433 = 256;
-        }
-
-        for (int kolumny_pilot_433 = 0; kolumny_pilot_433 <= 3; kolumny_pilot_433++)
-        {
-
-            if (kolumny_pilot_433 == 0)
-            {
-                nr_eeprom_pilot_433 = 0;
-            }
-            if (kolumny_pilot_433 == 1)
-            {
-                nr_eeprom_pilot_433 = 4;
-            }
-            if (kolumny_pilot_433 == 2)
-            {
-                nr_eeprom_pilot_433 = 8;
-            }
-            if (kolumny_pilot_433 == 3)
-            {
-                nr_eeprom_pilot_433 = 12;
-            }
-
-            tabRCswitch[wiersze_pilot_433][kolumny_pilot_433] = readLongFromEEPROM((nr_eeprom_pilot_433 + nr_dwa_eeprom_pilot_433));
-        }
-    }
+    odczyt_Pamieci_EEprom();
 
     for (int wl = 10; wl >= 0; wl--)
     {
@@ -1458,6 +1463,7 @@ void loop()
 
         czasprzycotwieraniedolna = czas;
         czasprzycotwieraniegora = czas;
+        czas_pilot_czas_ustawien_licz = czas;
         ////////////////////////do uzupełnienia !!!!!!!!/////////////
     }
     ///////czujnik zmierzchu/////////////////////////////////////////////////////////////////////////////////////
@@ -1865,6 +1871,7 @@ void loop()
                                 nr_pilota = 0;
                                 czaspikaczu2 = czas;
                                 tryb_ustawien_433 = 0;
+                                odczyt_Pamieci_EEprom();
                                 pcf8574(cyfrybledow[0]);
                             }
 
@@ -2264,6 +2271,7 @@ void loop()
             nr_pilota = 0;
             czaspikaczu2 = czas;
             tryb_ustawien_433 = 0;
+            odczyt_Pamieci_EEprom();
         }
     }
 
