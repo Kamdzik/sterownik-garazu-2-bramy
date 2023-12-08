@@ -382,9 +382,9 @@ unsigned long czas_przyc_dlugie_prog = 10000;     // 1min po tym czasie włącza
 int nr_pilota = 0;                                /// 1,2,3,4,5,6//  0,16,32,64,128,256
 byte nr_pilota_licz_plus = 0;                     // pomoc w liczeniu pilotów
 int nr_dwa_eeprom_pilot_433, nr_eeprom_pilot_433; // zmienne do numerów kolumn i wierszy przy odczycie z pamięci
-unsigned long tabRCswitch_bufor[6];               // bufor odczytanych komend przy zapisie
+unsigned long tabRCswitch_bufor[7];               // bufor odczytanych komend przy zapisie
 byte numer_tabRCswitch_bufor = 0;
-unsigned long tabRCswitch[5][3]; /// PIERWSZALICZBA WIERSZE --  , DRUGA KOLUMNY ||   !!!OD ZERA!!
+unsigned long tabRCswitch[6][4]; /// PIERWSZALICZBA WIERSZE --  , DRUGA KOLUMNY ||   !!!OD ZERA!!
 //      otwórz doł  ,,  zamnij dół ,, otwórz góra  ,,  zamnij góra
 //          0               1              2               3
 ///  0    XXXXX           XXXXX          XXXXX           XXXXX
@@ -399,6 +399,10 @@ unsigned long czas_pilot_klik_dwuklik = 120;                                    
 unsigned long czas_pilot_czas_ustawien = 100000;                                      // zas po którym ustawienia pilotów sie
 unsigned long czas_pilot_czas_ustawien_licz;
 byte animacja_pilot_k = 0;
+
+int wiersze_pilot_433 = 0;
+int kolumny_pilot_433 = 0;
+
 /////
 
 /////
@@ -1209,6 +1213,11 @@ void writeLongIntoEEPROM(int address, unsigned long number)
     EEPROM.update(address + 1, (number >> 16) & 0xFF);
     EEPROM.update(address + 2, (number >> 8) & 0xFF);
     EEPROM.update(address + 3, number & 0xFF);
+
+    // Serial.print(EEPROM.read(0));
+    // Serial.print(EEPROM.read(1));
+    // Serial.print(EEPROM.read(2));
+    // Serial.print(EEPROM.read(3));
 }
 
 unsigned long readLongFromEEPROM(int address)
@@ -1219,7 +1228,7 @@ unsigned long readLongFromEEPROM(int address)
 void odczyt_Pamieci_EEprom()
 {
 
-    for (int wiersze_pilot_433 = 0; wiersze_pilot_433 <= 5; wiersze_pilot_433++)
+    for ( wiersze_pilot_433 = 0; wiersze_pilot_433 <= 5; wiersze_pilot_433++)
     {
         if (wiersze_pilot_433 == 0)
         {
@@ -1246,7 +1255,7 @@ void odczyt_Pamieci_EEprom()
             nr_dwa_eeprom_pilot_433 = 256;
         }
 
-        for (int kolumny_pilot_433 = 0; kolumny_pilot_433 <= 3; kolumny_pilot_433++)
+        for ( kolumny_pilot_433 = 0; kolumny_pilot_433 <= 3; kolumny_pilot_433++)
         {
 
             if (kolumny_pilot_433 == 0)
@@ -1464,6 +1473,10 @@ void loop()
         czasprzycotwieraniedolna = czas;
         czasprzycotwieraniegora = czas;
         czas_pilot_czas_ustawien_licz = czas;
+        czas_pilot1_klik = czas;
+        czas_pilot2_klik = czas;
+        czas_pilot3_klik = czas;
+        czas_pilot4_klik = czas;
         ////////////////////////do uzupełnienia !!!!!!!!/////////////
     }
     ///////czujnik zmierzchu/////////////////////////////////////////////////////////////////////////////////////
@@ -2176,6 +2189,7 @@ void loop()
                                             }
                                             // zajęty eeprom 272 włącznie
 
+                                            odczyt_Pamieci_EEprom();
                                             numer_tabRCswitch_bufor = 0;
                                             czaspikaczu2 = czas; /// zapinano kod
                                             tryb_ustawien_433 = 2;
@@ -2185,40 +2199,44 @@ void loop()
                                             numer_tabRCswitch_bufor = 0;
                                             czaspikaczu1 = czas;
                                         }
+
                                     }
                                     else
                                     {
                                         numer_tabRCswitch_bufor = 0;
-                                        czaspikaczu1 = czas;
+                                       czaspikaczu1 = czas;
                                     }
                                 }
                                 else
                                 {
                                     numer_tabRCswitch_bufor = 0;
-                                    czaspikaczu1 = czas;
+                                 //   czaspikaczu1 = czas;
                                 }
                             }
                             else
                             {
                                 numer_tabRCswitch_bufor = 0;
-                                czaspikaczu1 = czas;
+//                                czaspikaczu1 = czas;
                             }
                         }
                         else
                         {
                             numer_tabRCswitch_bufor = 0;
-                            czaspikaczu1 = czas;
+                         //   czaspikaczu1 = czas;
                         }
                     }
                     else
                     {
                         numer_tabRCswitch_bufor = 0;
-                        czaspikaczu1 = czas;
+                       // czaspikaczu1 = czas;
                     }
                 }
             }
         }
     }
+
+
+
 
     if (tryb_ustawien_433 <= 1)
     {
