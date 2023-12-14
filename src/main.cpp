@@ -1,4 +1,4 @@
-// wersja 1.183  dodane 433Hmz
+// wersja 1.2  dodane 433Hmz
 //
 //////////////////////////////program do sterownika garażu, plik główny /////////////////////////////////////////////1
 /// biblioteki
